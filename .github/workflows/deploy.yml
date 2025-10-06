@@ -1,0 +1,93 @@
+name: Laravel CI/CD (GoDaddy Subdomain)
+
+on:
+  push:
+    branches:
+      - admin
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      LOCAL_SRC: ./
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Restore file mtimes from Git history
+      uses: chetan/git-restore-mtime-action@v2
+
+    - name: Determine remote directory by branch
+      id: set_remote
+      run: |
+        echo "Triggered branch: $GITHUB_REF"
+        # Extract branch name (ref could be refs/heads/admin)
+        BRANCH="${GITHUB_REF#refs/heads/}"
+        if [ "$BRANCH" = "admin" ]; then
+          echo "REMOTE_DIR=/path/to/admin/subdomain" >> ${{ secrets.STAGING_DIR }}
+        elif [ "$BRANCH" = "main" ]; then
+          echo "REMOTE_DIR=/path/to/main/subdomain" >> ${{ secrets.REMOTE_DIR }}
+        else
+          # fallback if other branches trigger
+          echo "REMOTE_DIR=/path/to/default" >> ${{ secrets.STAGING_DIR }}
+        fi
+      env:
+        LC_ALL: C.UTF-8
+        LANG: C.UTF-8
+
+    - name: Add remote host key to known_hosts
+      run: |
+        mkdir -p ~/.ssh
+        chmod 700 ~/.ssh
+        if [ -z "${{ secrets.SSH_PORT }}" ]; then
+          ssh-keyscan -H "${{ secrets.FTP_HOST }}" >> ~/.ssh/known_hosts
+        else
+          ssh-keyscan -H -p "${{ secrets.SSH_PORT }}" "${{ secrets.FTP_HOST }}" >> ~/.ssh/known_hosts
+        fi
+        chmod 644 ~/.ssh/known_hosts
+      env:
+        LC_ALL: C.UTF-8
+        LANG: C.UTF-8
+
+    - name: Install lftp
+      run: |
+        sudo apt-get update -y
+        sudo apt-get install -y lftp
+
+    - name: Deploy directly from repo root with lftp (incremental, correct excludes)
+      run: |
+        if [ -z "${{ secrets.SFTP_PROTOCOL }}" ] || [ "${{ secrets.SFTP_PROTOCOL }}" = "sftp" ]; then
+          PROTO="sftp"
+        else
+          PROTO="${{ secrets.SFTP_PROTOCOL }}"
+        fi
+
+        if [ -z "${{ secrets.SSH_PORT }}" ]; then
+          TARGET_HOST="${PROTO}://${{ secrets.FTP_HOST }}"
+        else
+          TARGET_HOST="${PROTO}://${{ secrets.FTP_HOST }}:${{ secrets.SSH_PORT }}"
+        fi
+
+        echo "Uploading to remote dir: ${REMOTE_DIR}"
+
+        lftp -u "${{ secrets.FTP_USER }}","${{ secrets.FTP_PASS }}" \
+          -e "set ssl:verify-certificate no; \
+              set sftp:connect-program 'ssh -a -x -o UserKnownHostsFile=~/.ssh/known_hosts -o StrictHostKeyChecking=yes'; \
+              lcd ${LOCAL_SRC}; \
+              cd ${REMOTE_DIR}; \
+              mirror -R --only-newer --parallel=3 --verbose \
+                --exclude .git/ \
+                --exclude .github/ \
+                --exclude node_modules/ \
+                --exclude tests/ \
+                --exclude .env \
+                --exclude 'storage/logs/*' \
+                . .; \
+              bye" "$TARGET_HOST"
+      env:
+        LC_ALL: C.UTF-8
+        LANG: C.UTF-8
