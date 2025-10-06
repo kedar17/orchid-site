@@ -1,4 +1,4 @@
-name: Laravel CI/CD (GoDaddy Subdomain)
+name: Custom project CI/CD
 
 on:
   push:
@@ -23,18 +23,24 @@ jobs:
 
     - name: Determine remote directory by branch
       id: set_remote
+      shell: bash
       run: |
+        set -euo pipefail
         echo "Triggered branch: $GITHUB_REF"
-        # Extract branch name (ref could be refs/heads/admin)
-        BRANCH="${GITHUB_REF#refs/heads/}"
-        if [ "$BRANCH" = "admin" ]; then
-          echo "REMOTE_DIR=/path/to/admin/subdomain" >> ${{ secrets.STAGING_DIR }}
-        elif [ "$BRANCH" = "main" ]; then
-          echo "REMOTE_DIR=/path/to/main/subdomain" >> ${{ secrets.REMOTE_DIR }}
-        else
-          # fallback if other branches trigger
-          echo "REMOTE_DIR=/path/to/default" >> ${{ secrets.STAGING_DIR }}
-        fi
+        BRANCH="${GITHUB_REF##*/}"
+        echo "Detected branch: $BRANCH"
+        case "$BRANCH" in
+          admin)
+            echo "REMOTE_DIR=/public_html/staging.orchidsw.com/" >> $GITHUB_ENV
+            ;;
+          main)
+            echo "REMOTE_DIR=/public_html/staging.orchidsw.com/staging/" >> $GITHUB_ENV
+            ;;
+          *)
+            echo "REMOTE_DIR=/public_html/staging.orchidsw.com/" >> $GITHUB_ENV
+            ;;
+        esac
+        echo "REMOTE_DIR set to: $REMOTE_DIR"
       env:
         LC_ALL: C.UTF-8
         LANG: C.UTF-8
@@ -59,7 +65,10 @@ jobs:
         sudo apt-get install -y lftp
 
     - name: Deploy directly from repo root with lftp (incremental, correct excludes)
+      shell: bash
       run: |
+        set -euo pipefail
+
         if [ -z "${{ secrets.SFTP_PROTOCOL }}" ] || [ "${{ secrets.SFTP_PROTOCOL }}" = "sftp" ]; then
           PROTO="sftp"
         else
@@ -70,6 +79,12 @@ jobs:
           TARGET_HOST="${PROTO}://${{ secrets.FTP_HOST }}"
         else
           TARGET_HOST="${PROTO}://${{ secrets.FTP_HOST }}:${{ secrets.SSH_PORT }}"
+        fi
+
+        # Ensure REMOTE_DIR is defined by previous step
+        if [ -z "${REMOTE_DIR:-}" ]; then
+          echo "ERROR: REMOTE_DIR is not set. Aborting."
+          exit 1
         fi
 
         echo "Uploading to remote dir: ${REMOTE_DIR}"
