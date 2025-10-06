@@ -9,7 +9,7 @@
                 <div class="all_page-content carrer_page-content">
                     <div class="all_page-text carrer_page-text">
                         <h2>Shape the Future—Together</span></h2>
-                        <p>Turn your vision into reality with expert innovation and seamless execution k.</p>
+                        <p>Turn your vision into reality with expert innovation and seamless execution.</p>
                     </div>
                     <div class="default-button">
                         <a href="https://calendly.com/softwareorchid/tech-call" class="main_button service_detail_btn"><span class="button__label">Schedule a Tech Call</span></a>
