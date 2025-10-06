@@ -57,7 +57,7 @@ Route::middleware(['auth'])->group(function () {
 	Route::put('/billing/{billing}', [ExpenseTrackController::class, 'update'])->name('billing.update');
 	Route::delete('/billing/{id}', [ExpenseTrackController::class, 'destroy'])->name('billing.destroy');
 	
-	//kRoute::get('finance-billing', [FinanceBillingController::class, 'index']);
+	//Route::get('finance-billing', [FinanceBillingController::class, 'index']);
 
 	Route::get('payment-settlement', [PaymentSettlementComtroller::class, 'index']);
 
