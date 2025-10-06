@@ -13,96 +13,101 @@ jobs:
       LOCAL_SRC: ./
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-    - name: Restore file mtimes from Git history
-      uses: chetan/git-restore-mtime-action@v2
+      - name: Restore file mtimes from Git history
+        uses: chetan/git-restore-mtime-action@v2
 
-    - name: Determine remote directory by branch
-      id: set_remote
-      shell: bash
-      run: |
-        set -euo pipefail
-        echo "Triggered branch: $GITHUB_REF"
-        BRANCH="${GITHUB_REF##*/}"
-        echo "Detected branch: $BRANCH"
-        case "$BRANCH" in
-          admin)
-            echo "REMOTE_DIR=/public_html/staging.orchidsw.com/" >> $GITHUB_ENV
-            ;;
-          main)
-            echo "REMOTE_DIR=/public_html/staging.orchidsw.com/staging/" >> $GITHUB_ENV
-            ;;
-          *)
-            echo "REMOTE_DIR=/public_html/staging.orchidsw.com/" >> $GITHUB_ENV
-            ;;
-        esac
-        echo "REMOTE_DIR set to: $REMOTE_DIR"
-      env:
-        LC_ALL: C.UTF-8
-        LANG: C.UTF-8
+      - name: Determine remote directory by branch
+        id: set_remote
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Triggered branch: $GITHUB_REF"
+          BRANCH="${GITHUB_REF##*/}"
+          echo "Detected branch: $BRANCH"
 
-    - name: Add remote host key to known_hosts
-      run: |
-        mkdir -p ~/.ssh
-        chmod 700 ~/.ssh
-        if [ -z "${{ secrets.SSH_PORT }}" ]; then
-          ssh-keyscan -H "${{ secrets.FTP_HOST }}" >> ~/.ssh/known_hosts
-        else
-          ssh-keyscan -H -p "${{ secrets.SSH_PORT }}" "${{ secrets.FTP_HOST }}" >> ~/.ssh/known_hosts
-        fi
-        chmod 644 ~/.ssh/known_hosts
-      env:
-        LC_ALL: C.UTF-8
-        LANG: C.UTF-8
+          if [ "$BRANCH" = "admin" ]; then
+            REMOTE_DIR_VAL="/public_html/staging.orchidsw.com/staging/"
+          elif [ "$BRANCH" = "main" ]; then
+            REMOTE_DIR_VAL="/public_html/staging.orchidsw.com/"
+          else
+            REMOTE_DIR_VAL="/public_html/staging.orchidsw.com/staging/"
+          fi
 
-    - name: Install lftp
-      run: |
-        sudo apt-get update -y
-        sudo apt-get install -y lftp
+          # export for immediate use in this step
+          export REMOTE_DIR="$REMOTE_DIR_VAL"
 
-    - name: Deploy directly from repo root with lftp (incremental, correct excludes)
-      shell: bash
-      run: |
-        set -euo pipefail
+          # persist for later steps in the job
+          echo "REMOTE_DIR=$REMOTE_DIR_VAL" >> "$GITHUB_ENV"
 
-        if [ -z "${{ secrets.SFTP_PROTOCOL }}" ] || [ "${{ secrets.SFTP_PROTOCOL }}" = "sftp" ]; then
-          PROTO="sftp"
-        else
-          PROTO="${{ secrets.SFTP_PROTOCOL }}"
-        fi
+          # safe debug output
+          echo "REMOTE_DIR set to: $REMOTE_DIR"
+        env:
+          LC_ALL: C.UTF-8
+          LANG: C.UTF-8
 
-        if [ -z "${{ secrets.SSH_PORT }}" ]; then
-          TARGET_HOST="${PROTO}://${{ secrets.FTP_HOST }}"
-        else
-          TARGET_HOST="${PROTO}://${{ secrets.FTP_HOST }}:${{ secrets.SSH_PORT }}"
-        fi
+      - name: Add remote host key to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          if [ -z "${{ secrets.SSH_PORT }}" ]; then
+            ssh-keyscan -H "${{ secrets.FTP_HOST }}" >> ~/.ssh/known_hosts
+          else
+            ssh-keyscan -H -p "${{ secrets.SSH_PORT }}" "${{ secrets.FTP_HOST }}" >> ~/.ssh/known_hosts
+          fi
+          chmod 644 ~/.ssh/known_hosts
+        env:
+          LC_ALL: C.UTF-8
+          LANG: C.UTF-8
 
-        # Ensure REMOTE_DIR is defined by previous step
-        if [ -z "${REMOTE_DIR:-}" ]; then
-          echo "ERROR: REMOTE_DIR is not set. Aborting."
-          exit 1
-        fi
+      - name: Install lftp
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y lftp
 
-        echo "Uploading to remote dir: ${REMOTE_DIR}"
+      - name: Deploy directly from repo root with lftp (incremental, correct excludes)
+        shell: bash
+        run: |
+          set -euo pipefail
 
-        lftp -u "${{ secrets.FTP_USER }}","${{ secrets.FTP_PASS }}" \
-          -e "set ssl:verify-certificate no; \
-              set sftp:connect-program 'ssh -a -x -o UserKnownHostsFile=~/.ssh/known_hosts -o StrictHostKeyChecking=yes'; \
-              lcd ${LOCAL_SRC}; \
-              cd ${REMOTE_DIR}; \
-              mirror -R --only-newer --parallel=3 --verbose \
-                --exclude .git/ \
-                --exclude .github/ \
-                --exclude node_modules/ \
-                --exclude tests/ \
-                --exclude .env \
-                --exclude 'storage/logs/*' \
-                . .; \
-              bye" "$TARGET_HOST"
-      env:
-        LC_ALL: C.UTF-8
-        LANG: C.UTF-8
+          if [ -z "${{ secrets.SFTP_PROTOCOL }}" ] || [ "${{ secrets.SFTP_PROTOCOL }}" = "sftp" ]; then
+            PROTO="sftp"
+          else
+            PROTO="${{ secrets.SFTP_PROTOCOL }}"
+          fi
+
+          if [ -z "${{ secrets.SSH_PORT }}" ]; then
+            TARGET_HOST="${PROTO}://${{ secrets.FTP_HOST }}"
+          else
+            TARGET_HOST="${PROTO}://${{ secrets.FTP_HOST }}:${{ secrets.SSH_PORT }}"
+          fi
+
+          # Ensure REMOTE_DIR is defined by previous step
+          if [ -z "${REMOTE_DIR:-}" ]; then
+            echo "ERROR: REMOTE_DIR is not set. Aborting."
+            exit 1
+          fi
+
+          echo "Uploading to remote dir: ${REMOTE_DIR}"
+
+          lftp -u "${{ secrets.FTP_USER }}","${{ secrets.FTP_PASS }}" \
+            -e "set ssl:verify-certificate no; \
+                set sftp:connect-program 'ssh -a -x -o UserKnownHostsFile=~/.ssh/known_hosts -o StrictHostKeyChecking=yes'; \
+                lcd ${LOCAL_SRC}; \
+                cd ${REMOTE_DIR}; \
+                mirror -R --only-newer --parallel=3 --verbose \
+                  --exclude .git/ \
+                  --exclude .github/ \
+                  --exclude node_modules/ \
+                  --exclude tests/ \
+                  --exclude .env \
+                  --exclude 'storage/logs/*' \
+                  . .; \
+                bye" "$TARGET_HOST"
+        env:
+          LC_ALL: C.UTF-8
+          LANG: C.UTF-8
