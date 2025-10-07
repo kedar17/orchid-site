@@ -6,8 +6,17 @@ on:
       - admin
       - main
 
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
 jobs:
   build-and-deploy:
+    # Skip non-merged PRs
+    if: >
+      github.event_name == 'push' ||
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
     runs-on: ubuntu-latest
     env:
       LOCAL_SRC: ./
@@ -21,34 +30,32 @@ jobs:
       - name: Restore file mtimes from Git history
         uses: chetan/git-restore-mtime-action@v2
 
-      - name: Determine remote directory by branch
+      - name: Determine remote directory
         id: set_remote
         shell: bash
         run: |
           set -euo pipefail
-          echo "Triggered branch: $GITHUB_REF"
-          BRANCH="${GITHUB_REF##*/}"
-          echo "Detected branch: $BRANCH"
 
-          if [ "$BRANCH" = "admin" ]; then
-            REMOTE_DIR_VAL="/public_html/staging.orchidsw.com/staging/"
-          elif [ "$BRANCH" = "main" ]; then
+          echo "Event: $GITHUB_EVENT_NAME"
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            echo "Merged PR into main → deploying to live folder"
             REMOTE_DIR_VAL="/public_html/staging.orchidsw.com/"
           else
-            REMOTE_DIR_VAL="/public_html/staging.orchidsw.com/staging/"
+            BRANCH="${GITHUB_REF##*/}"
+            echo "Push to branch: $BRANCH"
+            if [[ "$BRANCH" == "admin" ]]; then
+              REMOTE_DIR_VAL="/public_html/staging.orchidsw.com/staging/"
+            else
+              # any push to main
+              REMOTE_DIR_VAL="/public_html/staging.orchidsw.com/"
+            fi
           fi
 
-          # export for immediate use in this step
+          # Export for this step and persist to later steps
           export REMOTE_DIR="$REMOTE_DIR_VAL"
-
-          # persist for later steps in the job
           echo "REMOTE_DIR=$REMOTE_DIR_VAL" >> "$GITHUB_ENV"
 
-          # safe debug output
-          echo "REMOTE_DIR set to: $REMOTE_DIR"
-        env:
-          LC_ALL: C.UTF-8
-          LANG: C.UTF-8
+          echo " → REMOTE_DIR set to: $REMOTE_DIR"
 
       - name: Add remote host key to known_hosts
         run: |
@@ -69,30 +76,31 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y lftp
 
-      - name: Deploy directly from repo root with lftp (incremental, correct excludes)
+      - name: Deploy with lftp
         shell: bash
         run: |
           set -euo pipefail
 
-          if [ -z "${{ secrets.SFTP_PROTOCOL }}" ] || [ "${{ secrets.SFTP_PROTOCOL }}" = "sftp" ]; then
+          # Build target URL
+          if [[ -z "${{ secrets.SFTP_PROTOCOL }}" ]] || [[ "${{ secrets.SFTP_PROTOCOL }}" == "sftp" ]]; then
             PROTO="sftp"
           else
             PROTO="${{ secrets.SFTP_PROTOCOL }}"
           fi
 
-          if [ -z "${{ secrets.SSH_PORT }}" ]; then
-            TARGET_HOST="${PROTO}://${{ secrets.FTP_HOST }}"
+          if [[ -z "${{ secrets.SSH_PORT }}" ]]; then
+            TARGET="${PROTO}://${{ secrets.FTP_HOST }}"
           else
-            TARGET_HOST="${PROTO}://${{ secrets.FTP_HOST }}:${{ secrets.SSH_PORT }}"
+            TARGET="${PROTO}://${{ secrets.FTP_HOST }}:${{ secrets.SSH_PORT }}"
           fi
 
-          # Ensure REMOTE_DIR is defined by previous step
-          if [ -z "${REMOTE_DIR:-}" ]; then
-            echo "ERROR: REMOTE_DIR is not set. Aborting."
+          # Ensure we have our directory
+          if [[ -z "${REMOTE_DIR:-}" ]]; then
+            echo "ERROR: REMOTE_DIR is not set!"
             exit 1
           fi
 
-          echo "Uploading to remote dir: ${REMOTE_DIR}"
+          echo "Uploading to: ${TARGET}${REMOTE_DIR}"
 
           lftp -u "${{ secrets.FTP_USER }}","${{ secrets.FTP_PASS }}" \
             -e "set ssl:verify-certificate no; \
@@ -106,8 +114,8 @@ jobs:
                   --exclude tests/ \
                   --exclude .env \
                   --exclude 'storage/logs/*' \
-                  . .; \
-                bye" "$TARGET_HOST"
+                . .; \
+                bye" "$TARGET"
         env:
           LC_ALL: C.UTF-8
           LANG: C.UTF-8
