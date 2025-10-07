@@ -1,4 +1,4 @@
-name: Laravel CI/CD (GoDaddy Subdomain)
+name: Custom project CI/CD
 
 on:
   push:
@@ -6,88 +6,116 @@ on:
       - admin
       - main
 
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
 jobs:
   build-and-deploy:
+    # Skip non-merged PRs
+    if: >
+      github.event_name == 'push' ||
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
     runs-on: ubuntu-latest
     env:
       LOCAL_SRC: ./
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-    - name: Restore file mtimes from Git history
-      uses: chetan/git-restore-mtime-action@v2
+      - name: Restore file mtimes from Git history
+        uses: chetan/git-restore-mtime-action@v2
 
-    - name: Determine remote directory by branch
-      id: set_remote
-      run: |
-        echo "Triggered branch: $GITHUB_REF"
-        # Extract branch name (ref could be refs/heads/admin)
-        BRANCH="${GITHUB_REF#refs/heads/}"
-        if [ "$BRANCH" = "admin" ]; then
-          echo "REMOTE_DIR=/path/to/admin/subdomain" >> ${{ secrets.STAGING_DIR }}
-        elif [ "$BRANCH" = "main" ]; then
-          echo "REMOTE_DIR=/path/to/main/subdomain" >> ${{ secrets.REMOTE_DIR }}
-        else
-          # fallback if other branches trigger
-          echo "REMOTE_DIR=/path/to/default" >> ${{ secrets.STAGING_DIR }}
-        fi
-      env:
-        LC_ALL: C.UTF-8
-        LANG: C.UTF-8
+      - name: Determine remote directory
+        id: set_remote
+        shell: bash
+        run: |
+          set -euo pipefail
 
-    - name: Add remote host key to known_hosts
-      run: |
-        mkdir -p ~/.ssh
-        chmod 700 ~/.ssh
-        if [ -z "${{ secrets.SSH_PORT }}" ]; then
-          ssh-keyscan -H "${{ secrets.FTP_HOST }}" >> ~/.ssh/known_hosts
-        else
-          ssh-keyscan -H -p "${{ secrets.SSH_PORT }}" "${{ secrets.FTP_HOST }}" >> ~/.ssh/known_hosts
-        fi
-        chmod 644 ~/.ssh/known_hosts
-      env:
-        LC_ALL: C.UTF-8
-        LANG: C.UTF-8
+          echo "Event: $GITHUB_EVENT_NAME"
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            echo "Merged PR into main → deploying to live folder"
+            REMOTE_DIR_VAL="/public_html/staging.orchidsw.com/"
+          else
+            BRANCH="${GITHUB_REF##*/}"
+            echo "Push to branch: $BRANCH"
+            if [[ "$BRANCH" == "admin" ]]; then
+              REMOTE_DIR_VAL="/public_html/staging.orchidsw.com/staging/"
+            else
+              # any push to main
+              REMOTE_DIR_VAL="/public_html/staging.orchidsw.com/"
+            fi
+          fi
 
-    - name: Install lftp
-      run: |
-        sudo apt-get update -y
-        sudo apt-get install -y lftp
+          # Export for this step and persist to later steps
+          export REMOTE_DIR="$REMOTE_DIR_VAL"
+          echo "REMOTE_DIR=$REMOTE_DIR_VAL" >> "$GITHUB_ENV"
 
-    - name: Deploy directly from repo root with lftp (incremental, correct excludes)
-      run: |
-        if [ -z "${{ secrets.SFTP_PROTOCOL }}" ] || [ "${{ secrets.SFTP_PROTOCOL }}" = "sftp" ]; then
-          PROTO="sftp"
-        else
-          PROTO="${{ secrets.SFTP_PROTOCOL }}"
-        fi
+          echo " → REMOTE_DIR set to: $REMOTE_DIR"
 
-        if [ -z "${{ secrets.SSH_PORT }}" ]; then
-          TARGET_HOST="${PROTO}://${{ secrets.FTP_HOST }}"
-        else
-          TARGET_HOST="${PROTO}://${{ secrets.FTP_HOST }}:${{ secrets.SSH_PORT }}"
-        fi
+      - name: Add remote host key to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          if [ -z "${{ secrets.SSH_PORT }}" ]; then
+            ssh-keyscan -H "${{ secrets.FTP_HOST }}" >> ~/.ssh/known_hosts
+          else
+            ssh-keyscan -H -p "${{ secrets.SSH_PORT }}" "${{ secrets.FTP_HOST }}" >> ~/.ssh/known_hosts
+          fi
+          chmod 644 ~/.ssh/known_hosts
+        env:
+          LC_ALL: C.UTF-8
+          LANG: C.UTF-8
 
-        echo "Uploading to remote dir: ${REMOTE_DIR}"
+      - name: Install lftp
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y lftp
 
-        lftp -u "${{ secrets.FTP_USER }}","${{ secrets.FTP_PASS }}" \
-          -e "set ssl:verify-certificate no; \
-              set sftp:connect-program 'ssh -a -x -o UserKnownHostsFile=~/.ssh/known_hosts -o StrictHostKeyChecking=yes'; \
-              lcd ${LOCAL_SRC}; \
-              cd ${REMOTE_DIR}; \
-              mirror -R --only-newer --parallel=3 --verbose \
-                --exclude .git/ \
-                --exclude .github/ \
-                --exclude node_modules/ \
-                --exclude tests/ \
-                --exclude .env \
-                --exclude 'storage/logs/*' \
+      - name: Deploy with lftp
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Build target URL
+          if [[ -z "${{ secrets.SFTP_PROTOCOL }}" ]] || [[ "${{ secrets.SFTP_PROTOCOL }}" == "sftp" ]]; then
+            PROTO="sftp"
+          else
+            PROTO="${{ secrets.SFTP_PROTOCOL }}"
+          fi
+
+          if [[ -z "${{ secrets.SSH_PORT }}" ]]; then
+            TARGET="${PROTO}://${{ secrets.FTP_HOST }}"
+          else
+            TARGET="${PROTO}://${{ secrets.FTP_HOST }}:${{ secrets.SSH_PORT }}"
+          fi
+
+          # Ensure we have our directory
+          if [[ -z "${REMOTE_DIR:-}" ]]; then
+            echo "ERROR: REMOTE_DIR is not set!"
+            exit 1
+          fi
+
+          echo "Uploading to: ${TARGET}${REMOTE_DIR}"
+
+          lftp -u "${{ secrets.FTP_USER }}","${{ secrets.FTP_PASS }}" \
+            -e "set ssl:verify-certificate no; \
+                set sftp:connect-program 'ssh -a -x -o UserKnownHostsFile=~/.ssh/known_hosts -o StrictHostKeyChecking=yes'; \
+                lcd ${LOCAL_SRC}; \
+                cd ${REMOTE_DIR}; \
+                mirror -R --only-newer --parallel=3 --verbose \
+                  --exclude .git/ \
+                  --exclude .github/ \
+                  --exclude node_modules/ \
+                  --exclude tests/ \
+                  --exclude .env \
+                  --exclude 'storage/logs/*' \
                 . .; \
-              bye" "$TARGET_HOST"
-      env:
-        LC_ALL: C.UTF-8
-        LANG: C.UTF-8
+                bye" "$TARGET"
+        env:
+          LC_ALL: C.UTF-8
+          LANG: C.UTF-8

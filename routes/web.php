@@ -50,7 +50,7 @@ Route::middleware(['auth'])->group(function () {
 	Route::put('/tasks/{task}', [TaskController::class, 'update'])->name('tasks.update');
 	Route::delete('/tasks/{id}', [TaskController::class, 'destroy'])->name('tasks.destroy');
 
-	//finance & billing jd
+	//finance & billing jdjfk
 	Route::get('finance-billing', [FinanceBillingController::class, 'index'])->name('finance-billing');
 	Route::post('add-billing', [ExpenseTrackController::class, 'addBilling'])->name('add-billing');
 	Route::get('/billing/filter', [ExpenseTrackController::class, 'filterBilling'])->name('filter-billing');
