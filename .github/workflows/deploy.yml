@@ -4,12 +4,12 @@ on:
   push:
     branches:
       - admin
-      - main
+      - master
 
   pull_request:
     types: [closed]
     branches:
-      - main
+      - master
 
 jobs:
   build-and-deploy:
