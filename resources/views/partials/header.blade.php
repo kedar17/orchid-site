@@ -19,7 +19,6 @@
 <meta name="twitter:title" content="Orchid Software | Web Development & Digital Growth">
 <meta name="twitter:description" content="Expert web solutions in Shopify, WordPress, and lead generation to scale your business.">
 <meta name="twitter:image" content="https://www.orchidsw.com/banner.jpg">
-
 <!-- Canonical URL -->
 <link rel="canonical" href="https://www.orchidsw.com">
 <!--favicon-->
