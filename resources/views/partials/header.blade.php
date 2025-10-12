@@ -22,7 +22,7 @@
 <!-- Canonical URL -->
 <link rel="canonical" href="https://www.orchidsw.com">
 <!--favicon-->
-<link rel="shortcut icon" type="image/png" href="{{ asset('img/orchid_o_white.png') }}">
+<link rel="shortcut icon" type="image/png" href="{{ asset('img/orchid_o_color.png') }}">
 <!--bootstrap css-->
 <link rel="stylesheet" type="text/css" href="{{ asset('css/bootstrap.min.css') }}">
 <!--owl carousel css-->
