@@ -111,6 +111,8 @@ jobs:
                   --exclude .git/ \
                   --exclude .github/ \
                   --exclude node_modules/ \
+                  --exclude package.json/ \
+                  --exclude package-lock.json/ \
                   --exclude tests/ \
                   --exclude .env \
                   --exclude 'storage/logs/*' \

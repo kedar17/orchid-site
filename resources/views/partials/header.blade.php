@@ -23,7 +23,7 @@
 <!-- Canonical URL -->
 <link rel="canonical" href="https://www.orchidsw.com">
 <!--favicon-->
-<link rel="shortcut icon" type="image/png" href="{{ asset('img/favicon.png') }}">
+<link rel="shortcut icon" type="image/png" href="{{ asset('img/orchid_o_white.png') }}">
 <!--bootstrap css-->
 <link rel="stylesheet" type="text/css" href="{{ asset('css/bootstrap.min.css') }}">
 <!--owl carousel css-->
@@ -60,7 +60,7 @@
     "@id": "https://orchidsw.com",
     "name": "Orchid Software(IN) Patna(HQ)",
     "url": "https://orchidsw.com",
-    "logo": "https://orchidsw.com/img/logo.png",
+    "logo": "https://orchidsw.com/img/orchid_logo_white.png",
     "sameAs": [
       "https://www.facebook.com/orchidsw",
       "https://www.linkedin.com/company/orchid-software/"
@@ -71,27 +71,38 @@
         "telephone": "+91 915 373 3160",
         "contactType": "Customer Support",
         "areaServed": "IN",
-        "priceRange":"$$",
+        "priceRange": "$$"
       }
     ],
-     "address":[{
-        "@type":"PostalAddress",
-        "streetAddress":"13 Chipura, ParsaBazar, Patna - 804453 ",
-        "addressLocality":"Patna","addressRegion":"BR","postalCode":"804453","addressCountry":"IN",
-        "geo":{},
-        "openingHoursSpecification":
-        [{"@type":"OpeningHoursSpecification",
-            "dayOfWeek":["Monday","Tuesday","Wednesday","Thursday","Friday"],
-            "opens":"9:30:00","closes":"6:30:00"}],
-        }],
-        "department":[{
-          "@type":"LocalBusiness",
-          "name":"Orchid Software(IN)-Patna(II)",
-          "image":"https://orchidsw.com/img/logo.png",
-          "telephone":"+91 915 373 3160",
-          "priceRange":"$$",
-        }],
-     }],
+    "address": [
+      {
+        "@type": "PostalAddress",
+        "streetAddress": "13 Chipura, ParsaBazar, Patna - 804453",
+        "addressLocality": "Patna",
+        "addressRegion": "BR",
+        "postalCode": "804453",
+        "addressCountry": "IN",
+        "geo": {},
+        "openingHoursSpecification": [
+          {
+            "@type": "OpeningHoursSpecification",
+            "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+            "opens": "9:30:00",
+            "closes": "6:30:00"
+          }
+        ]
+      }
+    ],
+    "department": [
+      {
+        "@type": "LocalBusiness",
+        "name": "Orchid Software(IN)-Patna(II)",
+        "image": "https://orchidsw.com/img/orchid_logo_white.png",
+        "telephone": "+91 915 373 3160",
+        "priceRange": "$$"
+      }
+    ]
+  },
   
   {
     "@context": "https://schema.org",
