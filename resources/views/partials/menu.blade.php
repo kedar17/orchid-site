@@ -9,7 +9,7 @@
             <div class="sidebar-content">
                 <div class="sidebar-logo">
                     <a href="/">
-                        <img class="img-fluid" src="{{ asset('img/logo.png') }}" alt="logo.png">
+                        <img class="img-fluid" src="{{ asset('img/orchid_logo_white.png') }}" alt="Orchid Logo">
                     </a>
                 </div>
                 <div class="overlay-menu">
@@ -71,7 +71,7 @@
                 <div class="main-menu-wrap">
                     <!--start site logo-->
                     <div class="site-logo">
-                        <a class="logo" href="/"><img src="{{ asset('img/logo.png') }}" alt="logo"></a>
+                        <a class="logo" href="/"><img src="{{ asset('img/orchid_logo_white.png') }}" alt="Orchid Logo"></a>
                     </div>
                     <!--end site logo-->
                     <!--start mainmenu-->

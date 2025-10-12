@@ -47,7 +47,7 @@ jobs:
               REMOTE_DIR_VAL="/public_html/staging.orchidsw.com/staging/"
             else
               # any push to main
-              REMOTE_DIR_VAL="/public_html/staging.orchidsw.com/"
+              REMOTE_DIR_VAL="/public_html/orchid-soft/"
             fi
           fi
 
@@ -111,6 +111,8 @@ jobs:
                   --exclude .git/ \
                   --exclude .github/ \
                   --exclude node_modules/ \
+                  --exclude package.json/ \
+                  --exclude package-lock.json/ \
                   --exclude tests/ \
                   --exclude .env \
                   --exclude 'storage/logs/*' \

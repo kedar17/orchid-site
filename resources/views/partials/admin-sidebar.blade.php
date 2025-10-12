@@ -1,7 +1,9 @@
 <ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
     <!-- Sidebar - Brand -->
-    <a class="sidebar-brand d-flex   text-start " href="index.php">
-        <div class="sidebar-brand-text">RS INFRA</div>
+    <a class="sidebar-brand d-flex align-items-center justify-content-center" href="/" style="height: 120px; padding: 20px 15px; min-height: 120px;">
+        <div class="sidebar-brand-logo" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
+            <img src="{{ asset('img/orchid_logo_white.svg') }}" alt="Orchid Software" style="width: 95%; height: auto; max-width: 100%; object-fit: contain; filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.2));">
+        </div>
     </a>
     <!-- Nav Item - Dashboard -->
     <li class="nav-item">
