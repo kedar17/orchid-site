@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - admin
-      - master
 
   pull_request:
     types: [closed]
@@ -39,12 +38,12 @@ jobs:
           echo "Event: $GITHUB_EVENT_NAME"
           if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
             echo "Merged PR into main → deploying to live folder"
-            REMOTE_DIR_VAL="/public_html/staging.orchidsw.com/"
+            REMOTE_DIR_VAL="/public_html/orchid-soft/"
           else
             BRANCH="${GITHUB_REF##*/}"
             echo "Push to branch: $BRANCH"
             if [[ "$BRANCH" == "admin" ]]; then
-              REMOTE_DIR_VAL="/public_html/staging.orchidsw.com/staging/"
+              REMOTE_DIR_VAL="/public_html/staging.orchidsw.com/staging"
             else
               # any push to main
               REMOTE_DIR_VAL="/public_html/orchid-soft/"
@@ -110,6 +109,7 @@ jobs:
                 mirror -R --only-newer --parallel=3 --verbose \
                   --exclude .git/ \
                   --exclude .github/ \
+                  --exclude vendor/ \
                   --exclude node_modules/ \
                   --exclude package.json/ \
                   --exclude package-lock.json/ \
