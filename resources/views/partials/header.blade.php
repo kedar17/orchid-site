@@ -21,8 +21,8 @@
 <meta name="twitter:image" content="https://www.orchidsw.com/banner.jpg">
 <!-- Canonical URL -->
 <link rel="canonical" href="https://www.orchidsw.com">
-<!--favicon-->
-<link rel="shortcut icon" type="image/png" href="{{ asset('img/orchid_o_color.png') }}">
+<!--favicon---->
+<link rel="shortcut icon" type="image/png" href="{{ asset('img/favicon.png') }}">
 <!--bootstrap css-->
 <link rel="stylesheet" type="text/css" href="{{ asset('css/bootstrap.min.css') }}">
 <!--owl carousel css-->
